@@ -4,8 +4,10 @@ import dotenv from "dotenv";
 // Load env variables
 dotenv.config();
 
+// Database URI
 const dbUri: string = process.env.DB_URI || "";
 
+// Function to connect with db
 export async function connectDB() {
   try {
     const data = await mongoose.connect(dbUri);
