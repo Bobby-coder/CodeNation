@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { ErrorMiddleware } from "./middleware/error";
+import userRouter from "./routes/UserRoute";
 
 // Initialize express app
 export const app = express();
@@ -19,7 +20,10 @@ app.use(
   })
 );
 
-// Testing route
+// user routes
+app.use("/api/v1", userRouter);
+
+// Test route
 app.get("/test", (req: Request, res: Response, next: NextFunction) => {
   return res.status(200).json({
     success: true,
@@ -35,4 +39,4 @@ app.all("*", (req: Request, res: Response, next: NextFunction) => {
 });
 
 // error middleware
-app.use(ErrorMiddleware)
+app.use(ErrorMiddleware);
