@@ -13,6 +13,7 @@ interface Emailoptions {
   templateData: { [key: string]: any };
 }
 
+// Function to send email
 async function sendMail(options: Emailoptions): Promise<void> {
   // create transporter object using nodemailer.createTransport()
   const transporter: Transporter = nodemailer.createTransport({
@@ -28,7 +29,7 @@ async function sendMail(options: Emailoptions): Promise<void> {
   const { userEmail, subject, templateName, templateData } = options;
 
   // get email template path using template name
-  const templatePath = path.join(__dirname, "../mails", templateName);
+  const templatePath = path.join(__dirname, "../template", templateName);
 
   // Render HTML template for email using ejs.renderFile()
   const htmlTemplate: string = await ejs.renderFile(templatePath, templateData);
