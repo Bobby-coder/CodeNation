@@ -1,11 +1,18 @@
 import dotenv from "dotenv";
-import jwt, { Secret } from "jsonwebtoken";
+import jwt, { JwtPayload, Secret } from "jsonwebtoken";
 import ErrorHandler from "../utils/ErrorHandler";
 import { Request, Response, NextFunction } from "express";
 import { User, IUser } from "../model/User";
 import sendMail from "../utils/SendMail";
 import { catchAsyncError } from "../utils/CatchAsyncError";
-import { sendToken } from "../utils/Jwt";
+import {
+  accessTokenOptions,
+  refreshTokenOptions,
+  sendToken,
+} from "../utils/Jwt";
+import { redis } from "../config/redis";
+import { getUserById } from "../services/userService";
+import cloudinary from "cloudinary";
 
 // load env variables
 dotenv.config();
@@ -17,7 +24,7 @@ interface IRegistrationBody {
   avatar?: string;
 }
 
-// Register User
+// Register User - It will send send otp to user email and a token in response
 export const registerUser = catchAsyncError(async function (
   req: Request,
   res: Response,
@@ -76,7 +83,7 @@ export const registerUser = catchAsyncError(async function (
       return res.status(201).json({
         success: true,
         message: `Please check your email ${user.email} to activate your account`,
-        activationToken: activationToken.token,
+        data: { activationToken: activationToken.token },
       });
     } catch (err: any) {
       return next(new ErrorHandler(err.message, 400));
@@ -107,7 +114,7 @@ export function createActivationToken(user: any): IActivationToken {
   return { token, activationCode };
 }
 
-// Activate User
+// Activate User - It will verify access token & otp then activate the user account by storing its details in db
 export const activateUser = catchAsyncError(async function (
   req: Request,
   res: Response,
@@ -132,7 +139,7 @@ export const activateUser = catchAsyncError(async function (
     }
 
     // Save new user to db
-    const data = await User.create({
+    const userData = await User.create({
       name,
       email,
       password,
@@ -141,15 +148,23 @@ export const activateUser = catchAsyncError(async function (
     // Return success response
     return res.status(200).json({
       success: true,
-      message: "User created successfully",
-      data,
+      message: "Your account is activated successfully",
+      data: {
+        userData,
+      },
     });
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 400));
   }
 });
 
-// Login User
+// type for login request
+interface ILoginRequest {
+  email: string;
+  password: string;
+}
+
+// Login User - this function saves access & refresh token in the cookies & saves the user in the redis db
 export const loginUser = catchAsyncError(async function (
   req: Request,
   res: Response,
@@ -157,7 +172,7 @@ export const loginUser = catchAsyncError(async function (
 ) {
   try {
     // extract user email and password from request body
-    const { email, password } = req.body;
+    const { email, password } = req.body as ILoginRequest;
 
     // If email or password is not entered
     if (!email || !password) {
@@ -190,14 +205,14 @@ export const loginUser = catchAsyncError(async function (
       return next(new ErrorHandler("Password is not correct", 400));
     }
 
-    // If password is correct then save access & refresh token in cookie & send access token in response
+    // If password is correct then generate access & refresh token and save them in cookie, save user to redis db & send access token in response
     sendToken(user, 200, res);
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 400));
   }
 });
 
-// Logout User
+// Logout User - this function will delete the access & refresh token from cookies & remove the logged in user from redis db
 export const logoutUser = catchAsyncError(async function (
   req: Request,
   res: Response,
@@ -208,11 +223,327 @@ export const logoutUser = catchAsyncError(async function (
     res.cookie("access_token", "", { maxAge: 1 });
     res.cookie("refresh_token", "", { maxAge: 1 });
 
+    // Remove user id from redis session
+    const userId = req.user?._id || "";
+    redis.del(userId);
+
     return res.status(200).json({
       success: true,
       message: "Logged out successfully",
     });
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+// update access token - this function updates the access token & refresh token, it extract user id using refresh token & then pass the user id as payload while creating the access token & refresh token & saves the updated tokens in cookie & returns access token in response
+export const updateAccessToken = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    // extract refresh token from cookies
+    const refresh_token = req.cookies.refresh_token as string;
+
+    // if refresh token is not present
+    if (!refresh_token) {
+      return next(new ErrorHandler("Refresh token not found", 400));
+    }
+
+    // if refresh token is present, then verify it & get the decoded object
+    const decoded = jwt.verify(
+      refresh_token,
+      process.env.REFRESH_TOKEN as string
+    ) as JwtPayload;
+
+    // if decoded object is not present then refresh token is invalid
+    if (!decoded) {
+      next(new ErrorHandler("Refresh token is not valid", 400));
+    }
+
+    // if decoded is present then get user from redis with user._id present inside decoded object
+    const user = await redis.get(decoded.id);
+
+    // if user is not present
+    if (!user) {
+      return next(new ErrorHandler("User not present", 400));
+    }
+
+    // if user is not then parse the user object
+    const parsedUser = JSON.parse(user);
+
+    // create the access token using jwt.sign()
+    const accessToken = jwt.sign(
+      { id: parsedUser._id },
+      process.env.ACCESS_TOKEN as string,
+      {
+        expiresIn: "5m",
+      }
+    );
+
+    // create the refresh token using jwt.sign()
+    const refreshToken = jwt.sign(
+      { id: parsedUser._id },
+      process.env.REFRESH_TOKEN as string,
+      { expiresIn: "3d" }
+    );
+
+    // save the user to request object
+    req.user = parsedUser;
+
+    // Save access & refresh token to cookies
+    res.cookie("access_token", accessToken, accessTokenOptions);
+    res.cookie("refresh_token", refreshToken, refreshTokenOptions);
+
+    // send access token in response
+    return res.status(200).json({
+      success: true,
+      message: "Access & Refresh token updated successfully",
+      data: { accessToken },
+    });
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+// get user info
+export const getUserInfo = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    // extract user id from request object
+    const id = req.user?._id;
+    // Fetch user details with user id & send user in response
+    getUserById(id, res, next);
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+// type for oauth login request
+interface ISocialAuthBody {
+  name: string;
+  email: string;
+  avatar: string;
+}
+
+// social oauth function - password less login
+export const socialAuth = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    //extract name , email & password from req
+    const { name, email, avatar } = req.body as ISocialAuthBody;
+    const user = await User.findOne({ email });
+    if (!user) {
+      const newUser = await User.create({ name, email, avatar });
+      sendToken(newUser, 200, res);
+    } else {
+      sendToken(user, 200, res);
+    }
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+// type for update user info request
+interface IUpdateUserInfo {
+  name: string;
+  email: string;
+}
+
+// update user info function
+export const updateUserInfo = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    // extract name & email from request body
+    const { name, email } = req.body as IUpdateUserInfo;
+
+    // extract user Id from request object
+    const userId = req.user?._id;
+
+    // find user document with specified user id
+    const user = await User.findById(userId);
+
+    // If new email is entered & user is present or logged in then check if new email is already present in db or not
+    if (email && user) {
+      const isNewEmailRegirtered = await User.findOne({ email });
+      if (isNewEmailRegirtered) {
+        return next(new ErrorHandler("This Email is already registered", 400));
+      }
+      // if new Email is not registered then update the old email in user document with new email
+      user.email = email;
+    }
+
+    // If new name is entered & user is present or logged in then update the old name in user document with new name
+    if (name && user) {
+      user.name = name;
+    }
+
+    // save changes made in user document to db using save()
+    await user?.save();
+
+    // update user in redis
+    redis.set(userId, JSON.stringify(user));
+
+    // return success response
+    return res.status(201).json({
+      success: true,
+      message: "User info updated successfully",
+      data: {
+        user,
+      },
+    });
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+// type for update user password request
+interface IUpdateUserPassword {
+  currentPassword: string;
+  newPassword: string;
+}
+
+// update user password
+export const updateUserPassword = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    // extract old & new password from request body
+    const { currentPassword, newPassword } = req.body as IUpdateUserPassword;
+
+    // If currentPassword, newPassword or both are not entered
+    if (!currentPassword || !newPassword) {
+      let message;
+      !currentPassword && (message = "Please enter your current password");
+      !newPassword && (message = "Please enter your new password");
+      !currentPassword &&
+        !newPassword &&
+        (message = "Please enter your current password & new password");
+
+      return next(new ErrorHandler(message, 400));
+    }
+
+    // extract user id from request object
+    const userId = req.user?._id;
+
+    // find user document with specified user id. DO select password because by default we have set password to select false in user schema.
+    const user = await User.findById(userId).select("+password");
+
+    // User with social login will not have any password because these types of logins are password less logins, thats if any social login user try to change the password, error response will be sent
+    if (user?.password === undefined) {
+      return next(new ErrorHandler("Invalid user", 400));
+    }
+
+    // compare whether current password is correct or not
+    const isCurrentPasswordMatched = await user?.comparePassword(
+      currentPassword
+    );
+
+    // if current password is not matched
+    if (!isCurrentPasswordMatched) {
+      return next(new ErrorHandler("Current password is not correct", 400));
+    }
+
+    // if current password is matched then update the current password in user document with new password
+    user.password = newPassword;
+
+    // save changes to db using save()
+    await user.save();
+
+    // update user in redis
+    await redis.set(userId, JSON.stringify(user));
+
+    // return success response
+    return res.status(201).json({
+      success: true,
+      message: "Password updated successfully",
+      data: {
+        user,
+      },
+    });
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+// update user profile picture
+export const updateUserProfilePicture = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    // extract avatar or profile picture link from request body
+    const { avatar } = req.body;
+
+    // extract user id from request object
+    const userId = req.user?._id;
+
+    // find user document with specified user id
+    const user = await User.findById(userId);
+    console.log({ avatar, user });
+
+    //
+    if (avatar && user) {
+      // if user already have avatar or profile picture
+      if (user?.avatar?.publicId) {
+        // delete the existing avatar or profile picture
+        await cloudinary.v2.uploader.destroy(user?.avatar?.publicId);
+
+        // then upload the new avatar or profile picture in cloudinary
+        const myCloud = await cloudinary.v2.uploader.upload(avatar, {
+          folder: "avatars",
+          width: 150,
+        });
+        // then upload publicId and secure url in User document
+        user.avatar = {
+          publicId: myCloud.public_id,
+          url: myCloud.secure_url,
+        };
+      }
+      // if user does not have avatar or profile picture
+      else {
+        // then upload the new avatar or profile picture in cloudinary
+        const myCloud = await cloudinary.v2.uploader.upload(avatar, {
+          folder: "avatars",
+          width: 150,
+        });
+        // then upload publicId and secure url in User document
+        user.avatar = {
+          publicId: myCloud.public_id,
+          url: myCloud.secure_url,
+        };
+        console.log(user.avatar);
+      }
+    }
+
+    // save changes to db using save()
+    await user?.save();
+
+    // update user in redis
+    await redis.set(userId, JSON.stringify(user));
+
+    // return success response
+    return res.status(201).json({
+      success: true,
+      message: "Profile Picture updated successfully",
+      data: {
+        user,
+      },
+    });
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 200));
   }
 });
