@@ -547,3 +547,116 @@ export const updateUserProfilePicture = catchAsyncError(async function (
     return next(new ErrorHandler(err.message, 200));
   }
 });
+
+// reset password link
+export const resetPasswordLink = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    // extract email from request body
+    const { email } = req.body;
+
+    // if email is not entered
+    if (!email) {
+      return next(new ErrorHandler("Please enter your email", 400));
+    }
+
+    // Find user with specified email
+    const user = await User.findOne({ email });
+
+    // if email is not registered
+    if (!user) {
+      return next(
+        new ErrorHandler(
+          `This email: ${email} is not registered with us, please enter a valid email`,
+          400
+        )
+      );
+    }
+
+    // If email is registered then generate a reset passwork link
+    const resetPasswordLink = `http://localhost:8000/reset-password/${user._id}`;
+
+    // define data to send in email
+    const data = { resetPasswordLink };
+
+    // send reset password link in mail
+    sendMail({
+      userEmail: email,
+      subject: "Reset Password",
+      templateName: "reset-password.ejs",
+      templateData: data,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Email sent successfully, please check your email to reset password",
+    });
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+// reset password
+export const resetPassword = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    // extract userId, password & confirm password from request body
+    const { newPassword, confirmPassword, userId } = req.body;
+
+    // if password, confirm password or both are not entered
+    if (!newPassword || !confirmPassword) {
+      let message;
+      !newPassword && (message = "Please enter your new password");
+      !confirmPassword &&
+        (message = "Please enter your password again to confirm");
+      !newPassword &&
+        !confirmPassword &&
+        (message = "Please enter your new password & confirm password");
+
+      return next(new ErrorHandler(message, 400));
+    }
+
+    // if new password & confirm password
+    if (newPassword !== confirmPassword) {
+      return next(new ErrorHandler("Password does not match", 400));
+    }
+
+    // if password contains less then 6 characters
+    if (newPassword.length < 6) {
+      return next(
+        new ErrorHandler("Password should contain atleast 6 characters", 400)
+      );
+    }
+
+    // find user with specified user id & select password because by default password is not selected in user schema
+    const user = await User.findById(userId).select("+password");
+
+    // if user is not present
+    if (!user) {
+      return next(new ErrorHandler("User not found", 400));
+    }
+
+    // update password in user document
+    user.password = newPassword;
+
+    // save changes to user model using save()
+    user.save();
+
+    // return success response
+    return res.status(201).json({
+      success: true,
+      message: `Password reset successfully`,
+    });
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+//<a href=<%= resetPasswordLink %>link</a>

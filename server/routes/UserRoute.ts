@@ -5,6 +5,8 @@ import {
   loginUser,
   logoutUser,
   registerUser,
+  resetPassword,
+  resetPasswordLink,
   socialAuth,
   updateAccessToken,
   updateUserInfo,
@@ -33,6 +35,10 @@ userRouter.put("/update-user-info", isAuthenticated, updateUserInfo);
 
 userRouter.put("/update-user-password", isAuthenticated, updateUserPassword);
 
-userRouter.put("/update-user-profile-picture", isAuthenticated, updateUserProfilePicture)
+userRouter.put("/update-user-profile-picture", isAuthenticated, updateUserProfilePicture);
+
+userRouter.post("/reset-password", resetPasswordLink);
+
+userRouter.put("/update-password", resetPassword)
 
 export default userRouter;
