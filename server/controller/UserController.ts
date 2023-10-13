@@ -99,7 +99,7 @@ interface IActivationToken {
   activationCode: string;
 }
 
-// createActivationToken function
+// createActivationToken function - this will generate token & otp for account activation
 export function createActivationToken(user: any): IActivationToken {
   // create activation code
   const activationCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -548,7 +548,7 @@ export const updateUserProfilePicture = catchAsyncError(async function (
   }
 });
 
-// reset password link
+// reset password link - This function will generate the reset password link and in that link it will append the user id & send the link in the mail
 export const resetPasswordLink = catchAsyncError(async function (
   req: Request,
   res: Response,
@@ -563,7 +563,7 @@ export const resetPasswordLink = catchAsyncError(async function (
       return next(new ErrorHandler("Please enter your email", 400));
     }
 
-    // Find user with specified email
+    // Find user with specified email & select password because by default password is not selected in user schema
     const user = await User.findOne({ email });
 
     // if email is not registered
@@ -576,8 +576,15 @@ export const resetPasswordLink = catchAsyncError(async function (
       );
     }
 
-    // If email is registered then generate a reset passwork link
-    const resetPasswordLink = `http://localhost:8000/reset-password/${user._id}`;
+    // If email is registered then a generate token for reset password which will expire in 5 minutes
+    const resetPasswordToken = jwt.sign(
+      { email },
+      process.env.RESET_PASSWORD_SECRET_KEY as Secret,
+      { expiresIn: "5m" }
+    );
+
+    // Create a new link to reset passwork & append reset password token to it, this link will not work after 5 minutes because token expiry is 5 minutes
+    const resetPasswordLink = `http://localhost:8000/reset-password/${resetPasswordToken}`;
 
     // define data to send in email
     const data = { resetPasswordLink };
@@ -600,7 +607,7 @@ export const resetPasswordLink = catchAsyncError(async function (
   }
 });
 
-// reset password
+// reset password - this function will extract userid & new password from request body & update the password,
 export const resetPassword = catchAsyncError(async function (
   req: Request,
   res: Response,
@@ -608,7 +615,23 @@ export const resetPassword = catchAsyncError(async function (
 ) {
   try {
     // extract userId, password & confirm password from request body
-    const { newPassword, confirmPassword, userId } = req.body;
+    const { newPassword, confirmPassword, resetPasswordToken } = req.body;
+
+    // Extract decoded object from resetPasswordToken which we have added to it as payload while creating the token
+    const decoded: { email: string } = jwt.verify(
+      resetPasswordToken,
+      process.env.RESET_PASSWORD_SECRET_KEY as string
+    ) as { email: string };
+
+    // if decoded is not present means token is expired which ultimately means link will not work
+    if (!decoded) {
+      return next(
+        new ErrorHandler("This link for reseting password is expired", 400)
+      );
+    }
+
+    // if decoded is present then extract email from it
+    const email = decoded.email;
 
     // if password, confirm password or both are not entered
     if (!newPassword || !confirmPassword) {
@@ -635,8 +658,8 @@ export const resetPassword = catchAsyncError(async function (
       );
     }
 
-    // find user with specified user id & select password because by default password is not selected in user schema
-    const user = await User.findById(userId).select("+password");
+    // extract user with specified email
+    const user = await User.findOne({ email }).select("+password");
 
     // if user is not present
     if (!user) {
@@ -658,5 +681,3 @@ export const resetPassword = catchAsyncError(async function (
     return next(new ErrorHandler(err.message, 400));
   }
 });
-
-//<a href=<%= resetPasswordLink %>link</a>
