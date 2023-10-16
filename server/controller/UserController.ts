@@ -493,7 +493,6 @@ export const updateUserProfilePicture = catchAsyncError(async function (
 
     // find user document with specified user id
     const user = await User.findById(userId);
-    console.log({ avatar, user });
 
     //
     if (avatar && user) {
@@ -525,7 +524,6 @@ export const updateUserProfilePicture = catchAsyncError(async function (
           publicId: myCloud.public_id,
           url: myCloud.secure_url,
         };
-        console.log(user.avatar);
       }
     }
 
