@@ -2,10 +2,11 @@ import { Request, Response, NextFunction } from "express";
 import { catchAsyncError } from "../utils/CatchAsyncError";
 import ErrorHandler from "../utils/ErrorHandler";
 import cloudinary from "cloudinary";
-import { createCourse } from "../services/courseService";
+import { createCourse, getAllCoursesService } from "../services/courseService";
 import Course from "../model/Course";
 import { redis } from "../config/redis";
 import sendMail from "../utils/SendMail";
+import Notification from "../model/Notification";
 
 // upload course
 export const uploadCourse = catchAsyncError(async function (
@@ -284,6 +285,13 @@ export const addQuestion = catchAsyncError(async function (
     // add new question objectto course content
     courseContent.questions.push(questionObject);
 
+    // send notification for the question
+    await Notification.create({
+      user: user?._id,
+      title: "New Question",
+      message: `You have a new question in ${courseContent?.title} from ${user?.name}`,
+    });
+
     // save changes made to course
     await course?.save();
 
@@ -345,6 +353,11 @@ export const addAnswer = catchAsyncError(async function (
     // if question owner replied on its own question
     if (questionObject.user._id === user?._id) {
       // send notification to admin
+      await Notification.create({
+        user: user?._id,
+        title: "New Question reply recieved",
+        message: `You have a new question reply in ${courseContent?.title} from ${user?.name}`,
+      });
     }
     // if any other user or admin replied or answered on a question then send mail to question owner
     else {
@@ -464,41 +477,47 @@ export const addReview = catchAsyncError(async function (
 });
 
 // add reply to review - only admin can reply
-export const addReplyToReview = catchAsyncError(async function(req:Request, res:Response, next:NextFunction){
-  try{
-    const {reply, courseId, reviewId} = req.body
+export const addReplyToReview = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { reply, courseId, reviewId } = req.body;
 
-    if(!reply){
-      return next(new ErrorHandler("Please add your reply", 400))
+    if (!reply) {
+      return next(new ErrorHandler("Please add your reply", 400));
     }
 
-    const course = await Course.findById(courseId)
+    const course = await Course.findById(courseId);
 
-    if(!course){
-      return next(new ErrorHandler("Course not found", 400))
+    if (!course) {
+      return next(new ErrorHandler("Course not found", 400));
     }
 
-    const review = course?.reviews.find((currRev:any) => currRev._id.equals(reviewId))
+    const review = course?.reviews.find((currRev: any) =>
+      currRev._id.equals(reviewId)
+    );
 
-    if(!review){
-      return next(new ErrorHandler("Review not found", 400))
+    if (!review) {
+      return next(new ErrorHandler("Review not found", 400));
     }
 
-    const user = req?.user
+    const user = req?.user;
 
-    const replyObject:any = {
+    const replyObject: any = {
       user,
-      comment:reply
-    }
+      comment: reply,
+    };
 
     // if review replies list is empty or not present then initialize an empty review reply array
-    if(!review.commentReplies){
-      review.commentReplies = []
+    if (!review.commentReplies) {
+      review.commentReplies = [];
     }
 
-    review.commentReplies?.push(replyObject)
+    review.commentReplies?.push(replyObject);
 
-    await course?.save()
+    await course?.save();
 
     // return success response
     return res.status(200).json({
@@ -508,7 +527,57 @@ export const addReplyToReview = catchAsyncError(async function(req:Request, res:
         course,
       },
     });
-  }catch(err:any){
-    return next(new ErrorHandler(err.message, 400))
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
   }
-})
+});
+
+// get all users for admin only
+export const getAllCoursesForAdmin = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    getAllCoursesService(res);
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+// delete course - only admin can delete
+export const deleteCourse = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    // extract user id from route parameters
+    const courseId = req.params.id;
+
+    // find user
+    const course = await Course.findById(courseId);
+
+    // if user not found
+    if (!course) {
+      return next(new ErrorHandler("Course not found", 400));
+    }
+
+    // delete user from db
+    const deletedCourse = await course.deleteOne({ courseId });
+
+    // delete user from redis cache also
+    await redis.del(courseId);
+
+    // return success response
+    return res.status(201).json({
+      success: true,
+      message: `Course of ${courseId} deleted successfully`,
+      data: {
+        deletedCourse,
+      },
+    });
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
