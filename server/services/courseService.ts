@@ -24,3 +24,16 @@ export const createCourse = catchAsyncError(async function (
     return next(new ErrorHandler(err.message, 400));
   }
 });
+
+// fetch all courses
+export const getAllCoursesService = async function (res: Response) {
+  const courses = await Course.find().sort({ createdAt: -1 });
+
+  return res.status(201).json({
+    success: true,
+    message: "All courses fetched successfully",
+    data: {
+      courses,
+    },
+  });
+};
