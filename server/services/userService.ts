@@ -1,4 +1,5 @@
 import { redis } from "../config/redis";
+import { User } from "../model/User";
 import ErrorHandler from "../utils/ErrorHandler";
 import { NextFunction, Response } from "express";
 
@@ -30,4 +31,38 @@ export const getUserById = async function (
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 400));
   }
+};
+
+// fetch all users
+export const getAllUsersService = async function (res: Response) {
+  const users = await User.find().sort({ createdAt: -1 });
+
+  return res.status(201).json({
+    success: true,
+    message: "All users fetched successfully",
+    data: {
+      users,
+    },
+  });
+};
+
+// update user Role
+export const updateUserRoleService = async function (
+  res: Response,
+  userId: string,
+  role: string
+) {
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { role },
+    { new: true }
+  );
+
+  return res.status(201).json({
+    success: true,
+    message: "Role updated successfully",
+    data: {
+      updatedUser,
+    },
+  });
 };
