@@ -4,6 +4,10 @@ import cors from "cors";
 import { ErrorMiddleware } from "./middleware/error";
 import userRouter from "./routes/UserRoute";
 import courseRouter from "./routes/CourseRoutes";
+import orderRouter from "./routes/OrderRoutes";
+import notificationRouter from "./routes/NotificationRoutes";
+import analyticsRouter from "./routes/AnalyticsRoutes";
+import layoutRouter from "./routes/LayoutRoutes";
 
 // Initialize express app
 export const app = express();
@@ -21,11 +25,8 @@ app.use(
   })
 );
 
-// user routes
-app.use("/api/v1", userRouter);
-
-// course routes
-app.use("/api/v1", courseRouter);
+// routes
+app.use("/api/v1", userRouter, courseRouter, orderRouter, notificationRouter, analyticsRouter, layoutRouter);
 
 // Test route
 app.get("/test", (req: Request, res: Response, next: NextFunction) => {
