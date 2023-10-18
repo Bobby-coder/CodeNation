@@ -11,7 +11,11 @@ import {
   sendToken,
 } from "../utils/Jwt";
 import { redis } from "../config/redis";
-import { getUserById } from "../services/userService";
+import {
+  getAllUsersService,
+  getUserById,
+  updateUserRoleService,
+} from "../services/userService";
 import cloudinary from "cloudinary";
 
 // load env variables
@@ -674,6 +678,71 @@ export const resetPassword = catchAsyncError(async function (
     return res.status(201).json({
       success: true,
       message: `Password reset successfully`,
+    });
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+// get all users for admin only
+export const getAllUsersForAdmin = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    getAllUsersService(res);
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+// update user role - only admin can update
+export const updateUserRole = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { userId, role } = req.body;
+
+    updateUserRoleService(res, userId, role);
+  } catch (err: any) {
+    return next(new ErrorHandler(err.message, 400));
+  }
+});
+
+// delete user - only admin can delete
+export const deleteUser = catchAsyncError(async function (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    // extract user id from route parameters
+    const userId = req.params.id;
+
+    // find user
+    const user = await User.findById(userId);
+
+    // if user not found
+    if (!user) {
+      return next(new ErrorHandler("User not found", 400));
+    }
+
+    // delete user from db
+    const deletedUser = await user.deleteOne({ userId });
+
+    // delete user from redis cache also
+    await redis.del(userId);
+
+    // return success response
+    return res.status(201).json({
+      success: true,
+      message: `User of ${userId} deleted successfully`,
+      data: {
+        deletedUser,
+      },
     });
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 400));
