@@ -77,28 +77,28 @@ const Header: FC<HeaderProps> = function ({ setOpen, activeItem }) {
           </div>
         </div>
         {/*Mobile Side Bar*/}
-          {openSidebar && (
-            <div
-              className="fixed w-full h-screen top-0 left-0 z-[999] dark:bg-[unset] bg-[#0000024]"
-              onClick={handleClose}
-              id="screen"
-            >
-              <div className="w-[70p%] fixed z-[9999] h-screen bg-white dark:bg-slate-900 dark:bg-opacity-90 top-0 right-0">
-                {/*Navigation Items*/}
-                <NavItems activeItem={activeItem} isMobile={true} />
-                {/*Profile Icon*/}
-                <HiOutlineUserCircle
-                  size={25}
-                  className="cursor-pointer ml-5 my-6 text-black dark:text-white"
-                  onClick={() => setOpen(true)}
-                />
-                <br />
-                <p className="text-[16px] px-6  text-black dark:text-white">
-                  Copyright © {new Date().getFullYear()} CodeNation
-                </p>
-              </div>
+        {openSidebar && (
+          <div
+            className="fixed w-full h-screen top-0 left-0 z-[999] dark:bg-[unset] bg-[#0000024]"
+            onClick={handleClose}
+            id="screen"
+          >
+            <div className="w-[70%] fixed z-[9999] h-screen bg-white dark:bg-slate-900 dark:bg-opacity-90 top-0 right-0">
+              {/*Navigation Items*/}
+              <NavItems activeItem={activeItem} isMobile={true} />
+              {/*Profile Icon*/}
+              <HiOutlineUserCircle
+                size={25}
+                className="cursor-pointer ml-5 my-6 text-black dark:text-white"
+                onClick={() => setOpen(true)}
+              />
+              <br />
+              <p className="text-[16px] px-2 pl-5 text-black dark:text-white">
+                Copyright © {new Date().getFullYear()} CodeNation
+              </p>
             </div>
-          )}
+          </div>
+        )}
       </div>
     </div>
   );

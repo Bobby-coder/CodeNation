@@ -3,10 +3,6 @@ import { FC } from "react";
 
 export const navItemsData = [
   {
-    name: "Home",
-    url: "/",
-  },
-  {
     name: "Courses",
     url: "/courses",
   },
@@ -34,7 +30,7 @@ const NavItems: FC<NavItemProps> = function ({ activeItem, isMobile }) {
   return (
     <>
       {/*Navigation bar for 800px + screens*/}
-      <div className="hidden 800px:flex gap-4">
+      <div className="hidden 800px:flex">
         {navItemsData &&
           navItemsData.map((currItem, index) => {
             return (
@@ -66,27 +62,31 @@ const NavItems: FC<NavItemProps> = function ({ activeItem, isMobile }) {
             >
               CodeNation
             </Link>
-            </div>
-            <div className="flex flex-col gap-8 mt-10">
+          </div>
+          <div className="flex flex-col gap-8 mt-10">
             {navItemsData &&
-            navItemsData.map((currItem, index) => {
-              return (
-                <>
-                  {/*Single Navigation Item*/}
-                  <Link href={currItem.url} key={crypto.randomUUID()} passHref>
-                    <span
-                      className={`${
-                        activeItem === index
-                          ? "dark:text-[#37a39a] text-[crimson]"
-                          : "dark:text-white text-black"
-                      } text-[18px] px-6 font-Poppins font-[400]`}
+              navItemsData.map((currItem, index) => {
+                return (
+                  <>
+                    {/*Single Navigation Item*/}
+                    <Link
+                      href={currItem.url}
+                      key={crypto.randomUUID()}
+                      passHref
                     >
-                      {currItem.name}
-                    </span>
-                  </Link>
-                </>
-              );
-            })}
+                      <span
+                        className={`${
+                          activeItem === index
+                            ? "dark:text-[#37a39a] text-[crimson]"
+                            : "dark:text-white text-black"
+                        } text-[18px] px-6 font-Poppins font-[400]`}
+                      >
+                        {currItem.name}
+                      </span>
+                    </Link>
+                  </>
+                );
+              })}
           </div>
         </div>
       )}
