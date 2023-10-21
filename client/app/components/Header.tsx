@@ -49,9 +49,12 @@ const Header: FC<HeaderProps> = function ({ setOpen, activeItem }) {
             <div>
               <Link
                 href={"/"}
-                className="text-[25px] font-Poppins font-[500] text-black dark:text-white"
+                className="font-extrabold text-[22px] leading-[35px] sm:text-2xl lg:text-3xl tracking-tight font-Poppins text-black dark:text-white"
               >
-                CodeNation
+                <span>Code</span>
+                <span className="bg-gradient bg-clip-text text-transparent">
+                  Nation
+                </span>
               </Link>
             </div>
             <div className="flex items-center">
