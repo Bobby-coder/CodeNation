@@ -17,6 +17,7 @@ const config: Config = {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "gradient-conic":
           "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
+        gradient: "linear-gradient(90deg,#4d88c4 2.34%,#964be1 100.78%)",
       },
       screens: {
         "1000px": "1000px",
@@ -32,7 +33,3 @@ const config: Config = {
   plugins: [],
 };
 export default config;
-
-/* 
-darkMode: ["class"] means that when dark mode is enabled, the dark class will be added to the html element.
-*/

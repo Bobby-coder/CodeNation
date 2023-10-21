@@ -31,5 +31,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-// read about - next fonts, next metadata, layout, next-themes
