@@ -22,13 +22,13 @@ const Hero: FC<HeroProps> = function (props) {
           <div className="pt-2"></div>
           <div className="w-full text-center">
             {/*Description for desktop screens*/}
-            <p className="800px:block hidden font-poppins 800px:text-[22px] 800px:leading-[32px] text-[16px] leading-[23px] font-normal text-[#A3B3BC] mt-5 mb-10">
-              Empower your programming journey with Becodemy <br /> dedicated
+            <p className="800px:block hidden font-poppins 800px:text-[22px] 800px:leading-[32px] text-[16px] leading-[23px] font-semibold dark:text-[#A3B3BC] text-gray-500 mt-5 mb-10">
+              Empower your programming journey with CodeNation <br /> dedicated
               community and comprehensive resources.
             </p>
             {/*Description for mobile screens*/}
-            <p className="800px:hidden block font-poppins 800px:text-[22px] 800px:leading-[32px] text-[16px] leading-[25px] font-normal text-[#A3B3BC] mt-5 mb-10">
-              Empower your programming journey with Becodemy dedicated community
+            <p className="800px:hidden block font-poppins 800px:text-[22px] 800px:leading-[32px] text-[16px] leading-[25px] font-semibold dark:text-[#A3B3BC] text-gray-500 mt-5 mb-10">
+              Empower your programming journey with CodeNation dedicated community
               and comprehensive resources.
             </p>
             {/*Explore courses button*/}
