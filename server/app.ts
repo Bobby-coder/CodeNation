@@ -8,6 +8,10 @@ import orderRouter from "./routes/OrderRoutes";
 import notificationRouter from "./routes/NotificationRoutes";
 import analyticsRouter from "./routes/AnalyticsRoutes";
 import layoutRouter from "./routes/LayoutRoutes";
+import dotenv from "dotenv"
+
+// Load env variables
+dotenv.config()
 
 // Initialize express app
 export const app = express();
@@ -22,6 +26,7 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: process.env.ORIGIN,
+    credentials:true
   })
 );
 

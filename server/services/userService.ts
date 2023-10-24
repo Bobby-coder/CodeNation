@@ -24,9 +24,7 @@ export const getUserById = async function (
     return res.status(201).json({
       success: true,
       message: `User with id:${id} fetched successfully`,
-      data: {
-        parsedUser,
-      },
+      user: parsedUser,
     });
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 400));
@@ -40,9 +38,7 @@ export const getAllUsersService = async function (res: Response) {
   return res.status(201).json({
     success: true,
     message: "All users fetched successfully",
-    data: {
-      users,
-    },
+    users,
   });
 };
 
@@ -61,8 +57,6 @@ export const updateUserRoleService = async function (
   return res.status(201).json({
     success: true,
     message: "Role updated successfully",
-    data: {
-      updatedUser,
-    },
+    updatedUser,
   });
 };

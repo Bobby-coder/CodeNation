@@ -63,6 +63,7 @@ export function sendToken(user: IUser, statusCode: number, res: Response) {
   return res.status(statusCode).json({
     success: true,
     message: "logged in successfully",
-    data: { user, accessToken },
+    user,
+    accessToken,
   });
 }

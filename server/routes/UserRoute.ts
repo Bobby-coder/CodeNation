@@ -20,7 +20,7 @@ import { authorizedRoles, isAuthenticated } from "../middleware/auth";
 
 const userRouter = express.Router();
 
-userRouter.post("/register", registerUser);
+userRouter.post("/registration", registerUser);
 
 userRouter.post("/activation", activateUser);
 
@@ -34,19 +34,19 @@ userRouter.get("/me", isAuthenticated, getUserInfo);
 
 userRouter.post("/social-auth", socialAuth);
 
-userRouter.put("/update-user-info", isAuthenticated, updateUserInfo);
+userRouter.put("/update-info", isAuthenticated, updateUserInfo);
 
-userRouter.put("/update-user-password", isAuthenticated, updateUserPassword);
+userRouter.put("/update-password", isAuthenticated, updateUserPassword);
 
 userRouter.put(
-  "/update-user-profile-picture",
+  "/update-avatar",
   isAuthenticated,
   updateUserProfilePicture
 );
 
 userRouter.post("/reset-password", resetPasswordLink);
 
-userRouter.put("/update-password", resetPassword);
+userRouter.put("/reset-password", resetPassword);
 
 userRouter.get(
   "/all-users",

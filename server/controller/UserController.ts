@@ -87,7 +87,7 @@ export const registerUser = catchAsyncError(async function (
       return res.status(201).json({
         success: true,
         message: `Please check your email ${user.email} to activate your account`,
-        data: { activationToken: activationToken.token },
+        activationToken: activationToken.token,
       });
     } catch (err: any) {
       return next(new ErrorHandler(err.message, 400));
@@ -153,9 +153,7 @@ export const activateUser = catchAsyncError(async function (
     return res.status(200).json({
       success: true,
       message: "Your account is activated successfully",
-      data: {
-        userData,
-      },
+      userData,
     });
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 400));
@@ -304,7 +302,7 @@ export const updateAccessToken = catchAsyncError(async function (
     return res.status(200).json({
       success: true,
       message: "Access & Refresh token updated successfully",
-      data: { accessToken },
+      accessToken,
     });
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 400));
@@ -368,24 +366,14 @@ export const updateUserInfo = catchAsyncError(async function (
   next: NextFunction
 ) {
   try {
-    // extract name & email from request body
-    const { name, email } = req.body as IUpdateUserInfo;
+    // extract name from request body
+    const { name } = req.body as IUpdateUserInfo;
 
     // extract user Id from request object
     const userId = req.user?._id;
 
     // find user document with specified user id
     const user = await User.findById(userId);
-
-    // If new email is entered & user is present or logged in then check if new email is already present in db or not
-    if (email && user) {
-      const isNewEmailRegirtered = await User.findOne({ email });
-      if (isNewEmailRegirtered) {
-        return next(new ErrorHandler("This Email is already registered", 400));
-      }
-      // if new Email is not registered then update the old email in user document with new email
-      user.email = email;
-    }
 
     // If new name is entered & user is present or logged in then update the old name in user document with new name
     if (name && user) {
@@ -402,9 +390,7 @@ export const updateUserInfo = catchAsyncError(async function (
     return res.status(201).json({
       success: true,
       message: "User info updated successfully",
-      data: {
-        user,
-      },
+      user,
     });
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 400));
@@ -473,9 +459,8 @@ export const updateUserPassword = catchAsyncError(async function (
     return res.status(201).json({
       success: true,
       message: "Password updated successfully",
-      data: {
-        user,
-      },
+
+      user,
     });
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 400));
@@ -541,9 +526,7 @@ export const updateUserProfilePicture = catchAsyncError(async function (
     return res.status(201).json({
       success: true,
       message: "Profile Picture updated successfully",
-      data: {
-        user,
-      },
+      user,
     });
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 200));
@@ -740,9 +723,8 @@ export const deleteUser = catchAsyncError(async function (
     return res.status(201).json({
       success: true,
       message: `User of ${userId} deleted successfully`,
-      data: {
-        deletedUser,
-      },
+
+      deletedUser,
     });
   } catch (err: any) {
     return next(new ErrorHandler(err.message, 400));
